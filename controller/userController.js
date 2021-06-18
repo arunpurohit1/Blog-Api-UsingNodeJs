@@ -180,19 +180,19 @@ let getBlog = async (req, res , next) => {
 
     let existingBlog;
     try{
-        existingBlog = await Blog.findOne({userId: userId , heading: heading});
+        existingBlog = await Blog.findOne({heading: heading});
     }catch (err){
          const error = new HttpError('Something Went Wrong' , 500);
           return next(error);
     }
-    if(!existingId){
-        return res.status(200).json({message :"User Id Does Not Exist Kindly Check Again"});
+    if(!existingBlog){
+        return res.status(200).json({message :"User Blog Does Not Exist Kindly Check Again"});
     }
-    if(existingId){
+    if(existingBlog){
         return res.status(200).json({
-            "userId": existingId.userId,
-            "heading": existingId.heading,
-             "body": existingId.body
+            "userId": existingBlog.userId,
+            "heading": existingBlog.heading,
+             "body": existingBlog.body
         });
     }
 }
