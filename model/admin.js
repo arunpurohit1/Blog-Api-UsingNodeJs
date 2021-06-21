@@ -10,7 +10,9 @@ adminSchema = new Schema({
     email: {type: String, required: true , unique: true},
     password: {type: String, required: true, minlength: 6},
     role: {type: String, required: true},
-    adminKey: {type: String, required: true}
+    adminKey: String,
+    resetToken: String,
+    expireToken: Date
 
 });
 

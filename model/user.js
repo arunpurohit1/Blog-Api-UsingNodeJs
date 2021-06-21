@@ -10,7 +10,9 @@ userSchema = new Schema({
     email: {type: String, required: true , unique: true},
     password: {type: String, required: true , minlength: 6},
     DOB: {type: String, required: true , trim: true},
-    role: {type: String, required: true}
+    role: {type: String, required: true},
+    resetToken: String,
+    expireToken: Date,
 
 });
 

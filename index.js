@@ -36,5 +36,6 @@ mongoose.connect(`mongodb+srv://${process.env.DB_HOST}:${process.env.DB_PASSWORD
 
      }).catch(err => {
 
-        console.log(err);
+        const error = new HttpError("Not Connecting to the Database",404);
+        console.log(error)
      });

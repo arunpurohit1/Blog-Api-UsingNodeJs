@@ -3,8 +3,11 @@ const bcrypt = require('bcryptjs');
 const User = require('../model/user');
 const Blog = require('../model/blog');
 const jwt = require('jsonwebtoken');
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const crypto = require('crypto');
 const dotenv = require('dotenv');
-
+ dotenv.config();
 const userSignup = async (req, res, next) =>{
       
     const {firstName, lastName , email , password , DOB , role} = req.body;
@@ -40,7 +43,7 @@ const userSignup = async (req, res, next) =>{
          email: email,
          password: encyptPassword,
          DOB: DOB,
-         role: role
+         role: "User"
 
      });
 
@@ -51,7 +54,6 @@ const userSignup = async (req, res, next) =>{
           return next(error);
      }
      let token;
-     dotenv.config();
      try{
           token = jwt.sign(
            {
@@ -99,7 +101,7 @@ const userLogin = async (req,res,next) => {
     }
 
       let token;
-     dotenv.config();
+    
      try{
           token = jwt.sign(
            {
@@ -120,11 +122,85 @@ const userLogin = async (req,res,next) => {
 
 }
 
+const resetPassword = async (req, res, next) => {
+  crypto.randomBytes(32, (err, buffer) => {
+    if (err) {
+      console.log(err);
+    }
+    const token = buffer.toString("hex");
+    User.findOne({ email: req.body.email }).then((user) => {
+      if (!user) {
+        return res
+          .status(422)
+          .json({ error: "User Does Not Exist With this email" });
+      }
+      user.resetToken = token;
+      user.expireToken = Date.now() + 36000000;
+      user
+        .save()
+        .then((result) => {
+          const msg = {
+            to: `${user.email}`, // Change to your recipient
+            from: `${process.env.USER_EMAIL}`, // Change to your verified sender
+            subject: "Sending with SendGrid is Fun",
+            text: "and easy to do anywhere, even with Node.js",
+            html: `<strong><h1>Reset Password Code </h1></strong><br> 
+           <p>Kindly Use The Below Secret Code To Update Password </p>
+            <h3>${token}</h3>
+            <h2>Note: Do not Share Secret Code With Anyone Otherwise Strict Action Take Against You</h2>`,
+          };
+          sgMail
+            .send(msg)
+            .then(() => {
+              return res
+                .status(200)
+                .json({ message: "The Email Has been Sent" });
+            })
+            .catch((err) => {
+              const error = new HttpError("Something Went Wrong", 500);
+              return next(error);
+            });
+        })
+        .catch((err) => {
+          const error = new HttpError("Email Sent Failed Try Again", 500);
+          return next(error);
+        });
+    });
+  });
+};
+
+const forgetPassword = async (req, res, next) => {
+  const newPassword = req.body.password;
+  const sentToken = req.body.token;
+  User.findOne({ resetToken: sentToken, expireToken: { $gt: Date.now() } })
+    .then((user) => {
+      if (!user) {
+        return res.status(422).json({ error: "try again session expired" });
+      }
+      bcrypt.hash(newPassword, 12).then((hashedPassword) => {
+        user.password = hashedPassword;
+        user.resetToken = undefined;
+        user.expireToken = undefined;
+        user.save().then((saveduser) => {
+          return res
+            .status(200)
+            .json({ message: "Password Updated Successfully" });
+        });
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      const error = new HttpError("Password Update Failed", 500);
+      return next(error);
+    });
+};
+
+
 const getInfo = async (req ,res , next) => {
-    const {email} = req.body;
+    const {firstName , lastName , email} = req.body;
     let existingUser;
     try{
-         existingUser = await User.findOne({email: email});
+         existingUser = await User.findOne({firstName: firstName , lastName: lastName , email:email});
     }catch(err){
           const error = new HttpError('Something Went Wrong' , 500);
           return next(error);
@@ -180,25 +256,27 @@ let getBlog = async (req, res , next) => {
 
     let existingBlog;
     try{
-         existingBlog = await Blog.find({$or:[{heading:{'$regex':heading}}]}, (err ,result) => {
+        existingBlog = await Blog.find({$or:[{heading:{'$regex':heading}}]}, (err ,result) => {
             if (err) {throw err}
             else{
                 return res.status(200).json(result);
             }
+        });
     }catch (err){
          const error = new HttpError('Something Went Wrong' , 500);
           return next(error);
+        
     }
     if(!existingBlog){
-        return res.status(200).json({message :"User Blog Does Not Exist Kindly Check Again"});
+        return res.status(200).json({message :"User Id Does Not Exist Kindly Check Again"});
     }
-//     if(existingBlog){
-//         return res.status(200).json({
-//             "userId": existingBlog.userId,
-//             "heading": existingBlog.heading,
-//              "body": existingBlog.body
-//         });
-//     }
+    // if(existingBlog){
+    //     return res.status(200).json({
+    //         "userId": existingBlog.userId,
+    //         "heading": existingBlog.heading,
+    //          "body": existingBlog.body
+    //     });
+    // }
 }
 
 exports.userSignup = userSignup;
@@ -206,3 +284,5 @@ exports.userLogin = userLogin;
 exports.getInfo = getInfo;
 exports.postBlog = postBlog;
 exports.getBlog = getBlog;
+exports.resetPassword = resetPassword;
+exports.forgetPassword = forgetPassword;

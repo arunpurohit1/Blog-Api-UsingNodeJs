@@ -14,3 +14,4 @@ blogSchema = new Schema({
 blogSchema.plugin(uniqueValidator);
 
 module.exports = mongoose.model('Blog',blogSchema);
+
